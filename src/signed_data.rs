@@ -68,9 +68,10 @@ pub struct SignedData<'a> {
 pub(crate) fn parse_signed_data<'a>(
     der: &mut untrusted::Reader<'a>,
 ) -> Result<(untrusted::Input<'a>, SignedData<'a>), Error> {
-    let (data, tbs) =
-        der.read_partial(|input| der::expect_tag_and_get_value(input, der::Tag::Sequence))?;
-    let algorithm = der::expect_tag_and_get_value(der, der::Tag::Sequence)?;
+    let (data, tbs) = der.read_partial(|input| {
+        der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)
+    })?;
+    let algorithm = der::expect_tag_and_get_value(der, der::Tag::Sequence, Error::BadDER)?;
     let signature = der::bit_string_with_no_unused_bits(der)?;
 
     Ok((
@@ -176,7 +177,8 @@ struct SubjectPublicKeyInfo<'a> {
 // parsing the signature.
 fn parse_spki_value(input: untrusted::Input) -> Result<SubjectPublicKeyInfo, Error> {
     input.read_all(Error::BadDER, |input| {
-        let algorithm_id_value = der::expect_tag_and_get_value(input, der::Tag::Sequence)?;
+        let algorithm_id_value =
+            der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)?;
         let key_value = der::bit_string_with_no_unused_bits(input)?;
         Ok(SubjectPublicKeyInfo {
             algorithm_id_value,
@@ -403,7 +405,7 @@ mod tests {
         let spki_value = untrusted::Input::from(&tsd.spki);
         let spki_value = spki_value
             .read_all(Error::BadDER, |input| {
-                der::expect_tag_and_get_value(input, der::Tag::Sequence)
+                der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)
             })
             .unwrap();
 
@@ -416,7 +418,7 @@ mod tests {
         let algorithm = untrusted::Input::from(&tsd.algorithm);
         let algorithm = algorithm
             .read_all(Error::BadDER, |input| {
-                der::expect_tag_and_get_value(input, der::Tag::Sequence)
+                der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)
             })
             .unwrap();
 
@@ -483,7 +485,7 @@ mod tests {
         assert_eq!(
             Err(expected_error),
             spki.read_all(Error::BadDER, |input| {
-                der::expect_tag_and_get_value(input, der::Tag::Sequence)
+                der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)
             })
         );
     }

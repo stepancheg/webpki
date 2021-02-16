@@ -95,8 +95,9 @@ fn parse_cert_v1(cert_der: untrusted::Input) -> Result<TrustAnchor, Error> {
                 skip(tbs, der::Tag::Sequence)?; // signature.
                 skip(tbs, der::Tag::Sequence)?; // issuer.
                 skip(tbs, der::Tag::Sequence)?; // validity.
-                let subject = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
-                let spki = der::expect_tag_and_get_value(tbs, der::Tag::Sequence)?;
+                let subject =
+                    der::expect_tag_and_get_value(tbs, der::Tag::Sequence, Error::BadDER)?;
+                let spki = der::expect_tag_and_get_value(tbs, der::Tag::Sequence, Error::BadDER)?;
 
                 Ok(TrustAnchor {
                     subject: subject.as_slice_less_safe(),
@@ -115,5 +116,5 @@ fn parse_cert_v1(cert_der: untrusted::Input) -> Result<TrustAnchor, Error> {
 }
 
 fn skip(input: &mut untrusted::Reader, tag: der::Tag) -> Result<(), Error> {
-    der::expect_tag_and_get_value(input, tag).map(|_| ())
+    der::expect_tag_and_get_value(input, tag, Error::BadDER).map(|_| ())
 }

@@ -301,7 +301,7 @@ fn check_eku(
     match input {
         Some(input) => {
             loop {
-                let value = der::expect_tag_and_get_value(input, der::Tag::OID)?;
+                let value = der::expect_tag_and_get_value(input, der::Tag::OID, Error::BadDER)?;
                 if value == required_eku_if_present.oid_value {
                     input.skip_to_end();
                     break;

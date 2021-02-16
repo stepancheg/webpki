@@ -71,7 +71,7 @@ pub fn check_name_constraints(
             return Ok(None);
         }
         let subtrees = der::nested(inner, subtrees_tag, Error::BadDER, |tagged| {
-            der::expect_tag_and_get_value(tagged, der::Tag::Sequence)
+            der::expect_tag_and_get_value(tagged, der::Tag::Sequence, Error::BadDER)
         })?;
         Ok(Some(subtrees))
     }
@@ -151,7 +151,8 @@ fn check_presented_id_conforms_to_constraints_in_subtree(
         fn general_subtree<'b>(
             input: &mut untrusted::Reader<'b>,
         ) -> Result<GeneralName<'b>, Error> {
-            let general_subtree = der::expect_tag_and_get_value(input, der::Tag::Sequence)?;
+            let general_subtree =
+                der::expect_tag_and_get_value(input, der::Tag::Sequence, Error::BadDER)?;
             general_subtree.read_all(Error::BadDER, |subtree| general_name(subtree))
         }
 

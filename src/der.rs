@@ -22,8 +22,16 @@ pub use ring::io::{
 pub fn expect_tag_and_get_value<'a>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
+    unexpected_tag_error: Error,
 ) -> Result<untrusted::Input<'a>, Error> {
-    ring::io::der::expect_tag_and_get_value(input, tag).map_err(|_| Error::BadDER)
+    if input.at_end() {
+        return Err(unexpected_tag_error);
+    }
+    let (actual_tag, inner) = read_tag_and_get_value(input)?;
+    if usize::from(tag) != usize::from(actual_tag) {
+        return Err(unexpected_tag_error);
+    }
+    Ok(inner)
 }
 
 pub struct Value<'a> {
@@ -69,34 +77,34 @@ pub fn read_tag_and_get_value<'a>(
 // TODO: investigate taking decoder as a reference to reduce generated code
 // size.
 #[inline(always)]
-pub fn nested_mut<'a, F, R, E: Copy>(
+pub fn nested_mut<'a, F, R>(
     input: &mut untrusted::Reader<'a>,
     tag: Tag,
-    error: E,
+    unexpected_tag_error: Error,
     decoder: F,
-) -> Result<R, E>
+) -> Result<R, Error>
 where
-    F: FnMut(&mut untrusted::Reader<'a>) -> Result<R, E>,
+    F: FnMut(&mut untrusted::Reader<'a>) -> Result<R, Error>,
 {
-    let inner = expect_tag_and_get_value(input, tag).map_err(|_| error)?;
-    inner.read_all(error, decoder).map_err(|_| error)
+    let inner = expect_tag_and_get_value(input, tag, unexpected_tag_error)?;
+    inner.read_all(Error::BadDER, decoder)
 }
 
 // TODO: investigate taking decoder as a reference to reduce generated code
 // size.
-pub fn nested_of_mut<'a, F, E: Copy>(
+pub fn nested_of_mut<'a, F>(
     input: &mut untrusted::Reader<'a>,
     outer_tag: Tag,
     inner_tag: Tag,
-    error: E,
+    unexpected_tag_error: Error,
     mut decoder: F,
-) -> Result<(), E>
+) -> Result<(), Error>
 where
-    F: FnMut(&mut untrusted::Reader<'a>) -> Result<(), E>,
+    F: FnMut(&mut untrusted::Reader<'a>) -> Result<(), Error>,
 {
-    nested_mut(input, outer_tag, error, |outer| {
+    nested_mut(input, outer_tag, unexpected_tag_error, |outer| {
         loop {
-            nested_mut(outer, inner_tag, error, |inner| decoder(inner))?;
+            nested_mut(outer, inner_tag, Error::BadDER, |inner| decoder(inner))?;
             if outer.at_end() {
                 break;
             }
